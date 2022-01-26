@@ -22,11 +22,8 @@ const (
 	screenWidth  = 640
 	screenHeight = 480
 	fontSize     = 24
-)
-
-const (
-	tileSize = 16
-	tileXNum = 16
+	tileSize     = 16
+	tileXNum     = 16
 )
 
 var (
@@ -35,7 +32,9 @@ var (
 )
 
 type Game struct {
-	layers [][]int
+	layers     [][]int
+	touchIDs   []ebiten.TouchID
+	gamepadIDs []ebiten.GamepadID
 }
 
 func init() {
@@ -79,73 +78,87 @@ func (g *Game) isKeyJustPressed() bool {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		return true
 	}
-	// g.touchIDs = inpututil.AppendJustPressedTouchIDs(g.touchIDs)
-	// if len(g.touchIDs) > 0 {
-	// 	return true
-	// }
-	// g.gamepadIDs = ebiten.AppendGamepadIDs(g.gamepadIDs[:0])
-	// for _, g := range g.gamepadIDs {
-	// 	if ebiten.IsStandardGamepadLayoutAvailable(g) {
-	// 		if inpututil.IsStandardGamepadButtonJustPressed(g, ebiten.StandardGamepadButtonRightBottom) {
-	// 			return true
-	// 		}
-	// 		if inpututil.IsStandardGamepadButtonJustPressed(g, ebiten.StandardGamepadButtonRightRight) {
-	// 			return true
-	// 		}
-	// 	} else {
-	// 		// The button 0/1 might not be A/B buttons.
-	// 		if inpututil.IsGamepadButtonJustPressed(g, ebiten.GamepadButton0) {
-	// 			return true
-	// 		}
-	// 		if inpututil.IsGamepadButtonJustPressed(g, ebiten.GamepadButton1) {
-	// 			return true
-	// 		}
-	// 	}
-	// }
+	g.touchIDs = inpututil.AppendJustPressedTouchIDs(g.touchIDs)
+	if len(g.touchIDs) > 0 {
+		return true
+	}
+	g.gamepadIDs = ebiten.AppendGamepadIDs(g.gamepadIDs[:0])
+	for _, g := range g.gamepadIDs {
+		if ebiten.IsStandardGamepadLayoutAvailable(g) {
+			if inpututil.IsStandardGamepadButtonJustPressed(g, ebiten.StandardGamepadButtonRightBottom) {
+				return true
+			}
+			if inpututil.IsStandardGamepadButtonJustPressed(g, ebiten.StandardGamepadButtonRightRight) {
+				return true
+			}
+		} else {
+			// The button 0/1 might not be A/B buttons.
+			if inpututil.IsGamepadButtonJustPressed(g, ebiten.GamepadButton0) {
+				return true
+			}
+			if inpututil.IsGamepadButtonJustPressed(g, ebiten.GamepadButton1) {
+				return true
+			}
+		}
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
+		return true
+	}
+	// When the "down arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		return true
+	}
+	// When the "left arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) || inpututil.IsKeyJustPressed(ebiten.KeyA) {
+		return true
+	}
+	// When the "right arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) || inpututil.IsKeyJustPressed(ebiten.KeyD) {
+		return true
+	}
 	return false
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
 
-	if g.isKeyJustPressed() {
-		// const xNum = screenWidth / tileSize
-		// op := &ebiten.DrawImageOptions{}
-		// op.GeoM.Translate(float64((i%xNum)*tileSize), float64((i/xNum)*tileSize))
-		// sx := 250 * tileSize
-		// sy := 25 * tile"Size
-		text.Draw(screen, "Hello, World!", arcadeFont, 250, 150, color.White)
-		// screen.DrawImage(tilesImage.SubImage(image.Rect(150, 150, 150+tileSize, 150+tileSize)).(*ebiten.Image), op)
+	const xNum = screenWidth / tileSize
+	x, y := ebiten.CursorPosition()
+
+	for _, l := range g.layers {
+		for i, t := range l {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64((i%xNum)*tileSize), float64((i/xNum)*tileSize))
+
+			sx := (t % tileXNum) * tileSize
+			sy := (t / tileXNum) * tileSize
+			screen.DrawImage(tilesImage.SubImage(image.Rect(sx, sy, sx+tileSize, sy+tileSize)).(*ebiten.Image), op)
+		}
 	}
-	// for _, l := range g.layers {
-	// 	for i, t := range l {
-	// 		op := &ebiten.DrawImageOptions{}
-	// 		op.GeoM.Translate(float64((i%xNum)*tileSize), float64((i/xNum)*tileSize))
+	if g.isKeyJustPressed() {
+		// screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
+		text.Draw(screen, "BOOM!", arcadeFont, x-50, y, color.White)
+	}
 
-	// 		sx := (t % tileXNum) * tileSize
-	// 		sy := (t / tileXNum) * tileSize
-	// 		screen.DrawImage(tilesImage.SubImage(image.Rect(sx, sy, sx+tileSize, sy+tileSize)).(*ebiten.Image), op)
-	// 	}
-	// }
-
-	// if ebiten.IsKeyPressed(ebiten.KeyUp) {
-	// 	ebitenutil.DebugPrint(screen, "\nYou're pressing the 'UP' button.")
-	// }
-	// // When the "down arrow key" is pressed..
-	// if ebiten.IsKeyPressed(ebiten.KeyDown) {
-	// 	ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'DOWN' button.")
-	// }
-	// // When the "left arrow key" is pressed..
-	// if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-	// 	ebitenutil.DebugPrint(screen, "\n\n\nYou're pressing the 'LEFT' button.")
-	// }
-	// // When the "right arrow key" is pressed..
-	// if ebiten.IsKeyPressed(ebiten.KeyRight) {
-	// 	ebitenutil.DebugPrint(screen, "\n\n\n\nYou're pressing the 'RIGHT' button.")
-	// }
+	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
+		ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'UP' button.")
+	}
+	// When the "down arrow key" is pressed..
+	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
+		ebitenutil.DebugPrint(screen, "\n\n\nYou're pressing the 'DOWN' button.")
+	}
+	// When the "left arrow key" is pressed..
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
+		ebitenutil.DebugPrint(screen, "\n\n\n\nYou're pressing the 'LEFT' button.")
+	}
+	// When the "right arrow key" is pressed..
+	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
+		ebitenutil.DebugPrint(screen, "\n\n\n\n\nYou're pressing the 'RIGHT' button.")
+	}
 
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS()))
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("\nFPS: %0.2f", ebiten.CurrentFPS()))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("\nX/Y: %d/%d", x, y))
+
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
