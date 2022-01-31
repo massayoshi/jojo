@@ -27,8 +27,9 @@ const (
 )
 
 var (
-	tilesImage *ebiten.Image
-	arcadeFont font.Face
+	tilesImage  *ebiten.Image
+	playerImage *ebiten.Image
+	arcadeFont  font.Face
 )
 
 type Game struct {
@@ -48,6 +49,12 @@ func init() {
 	}
 
 	tilesImage = ebiten.NewImageFromImage(img)
+
+	img, _, err = image.Decode(bytes.NewReader(images.Player_png))
+	if err != nil {
+		log.Fatal(err)
+	}
+	playerImage = ebiten.NewImageFromImage(img)
 }
 
 func init() {
@@ -139,6 +146,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		// screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
 		text.Draw(screen, "BOOM!", arcadeFont, x-50, y, color.White)
 	}
+	g.drawPlayer(screen, x, y)
 
 	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
 		ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'UP' button.")
@@ -163,6 +171,33 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
+}
+
+func LoadSpritesheet(input []byte, n int, width int, height int) []*ebiten.Image {
+	var sprites []*ebiten.Image
+
+	spritesheet, _, _ := image.Decode(bytes.NewReader(input))
+	ebitenImage := ebiten.NewImageFromImage(spritesheet)
+
+	for i := 0; i < n; i++ {
+		dimensions := image.Rect(i*width, 0, (i+1)*width, height)
+		sprite := ebitenImage.SubImage(dimensions).(*ebiten.Image)
+		sprites = append(sprites, sprite)
+	}
+
+	return sprites
+}
+
+func (g *Game) drawPlayer(screen *ebiten.Image, x int, y int) {
+	op := &ebiten.DrawImageOptions{}
+	// w, h := playerImage.Size()
+	// op.GeoM.Translate(-float64(w)/2.0, -float64(h)/2.0)
+	// op.GeoM.Rotate(float64(g.vy16) / 96.0 * math.Pi / 6)
+	// op.GeoM.Translate(float64(w)/2.0, float64(h)/2.0)
+	// op.GeoM.Translate(float64(g.x16/16.0)-float64(g.cameraX), float64(g.y16/16.0)-float64(g.cameraY))
+	op.Filter = ebiten.FilterLinear
+	op.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(playerImage.SubImage(image.Rect(0, 0, 32, 32)).(*ebiten.Image), op)
 }
 
 func main() {
