@@ -23,22 +23,19 @@ const (
 	fontSize     = 24
 	tileSize     = 16
 	tileXNum     = 16
-	frameOX      = 0
-	frameOY      = 0
 	frameWidth   = 32
 	frameHeight  = 32
 	frameNum     = 3
 )
 
 var (
-	tilesImage      *ebiten.Image
-	playerImage     *ebiten.Image
-	arcadeFont      font.Face
-	playerX         int
-	playerY         int
-	playerSpeed     int
-	playerDirection string
-	playerIdle      bool
+	tilesImage   *ebiten.Image
+	playerImage  *ebiten.Image
+	arcadeFont   font.Face
+	playerX      int
+	playerY      int
+	playerSpeed  int
+	playerSprite [2]int
 )
 
 type Game struct {
@@ -64,8 +61,7 @@ func init() {
 	playerX = (screenWidth / 2) - (tileSize)
 	playerY = (screenHeight / 2) - (tileSize)
 	playerSpeed = 2
-	playerDirection = "down"
-	playerIdle = true
+	playerSprite = [2]int{0, 0}
 }
 
 func init() {
@@ -88,40 +84,28 @@ func init() {
 func (g *Game) Update() error {
 	g.count++
 	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
-		if playerY < 0 {
-			playerY = 0
-		} else {
+		if playerY > 1 {
 			playerY = playerY - playerSpeed
 		}
-		playerDirection = "up"
-		playerIdle = inpututil.KeyPressDuration(ebiten.KeyUp) > 0
+		playerSprite = [2]int{0, 96}
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
-		if playerY > (screenHeight - (tileSize * 2)) {
-			playerY = screenHeight - (tileSize * 2)
-		} else {
+		if playerY < (screenHeight - (tileSize * 2)) {
 			playerY = playerY + playerSpeed
 		}
-		playerDirection = "down"
-		playerIdle = inpututil.KeyPressDuration(ebiten.KeyDown) > 0
+		playerSprite = [2]int{0, 0}
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
-		if playerX < 0 {
-			playerX = 0
-		} else {
+		if playerX > 1 {
 			playerX = playerX - playerSpeed
 		}
-		playerDirection = "left"
-		playerIdle = inpututil.KeyPressDuration(ebiten.KeyLeft) > 0
+		playerSprite = [2]int{0, 32}
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
-		if playerX > (screenWidth - (tileSize * 2)) {
-			playerX = screenWidth - (tileSize * 2)
-		} else {
+		if playerX < (screenWidth - (tileSize * 2)) {
 			playerX = playerX + playerSpeed
 		}
-		playerDirection = "right"
-		playerIdle = inpututil.KeyPressDuration(ebiten.KeyRight) > 0
+		playerSprite = [2]int{0, 64}
 	}
 	return nil
 }
@@ -221,7 +205,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS()))
 	// ebitenutil.DebugPrint(screen, fmt.Sprintf("\nX/Y: %d/%d", x, y))
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("\nX/Y: %d/%d", playerX, playerY))
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("\n\nDirection: %s / %t", playerDirection, playerIdle))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("\n\nDirection: %d / %d", playerSprite[0], playerSprite[1]))
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -260,12 +244,12 @@ func (g *Game) drawPlayer(screen *ebiten.Image, x int, y int, walking bool) {
 
 	// op.GeoM.Translate(-float64(frameWidth)/2, -float64(frameHeight)/2)
 	// op.GeoM.Translate(screenWidth/2, screenHeight/2)
+	i := (g.count / 5) % frameNum
+	sx, sy := playerSprite[0]+i*frameWidth, playerSprite[1]
 	if walking {
-		i := (g.count / 5) % frameNum
-		sx, sy := frameOX+i*frameWidth, frameOY
 		screen.DrawImage(playerImage.SubImage(image.Rect(sx, sy, sx+frameWidth, sy+frameHeight)).(*ebiten.Image), op)
 	} else {
-		screen.DrawImage(playerImage.SubImage(image.Rect(0, 0, 32, 32)).(*ebiten.Image), op)
+		screen.DrawImage(playerImage.SubImage(image.Rect(32, sy, 64, sy+frameHeight)).(*ebiten.Image), op)
 	}
 }
 
