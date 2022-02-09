@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/png"
 	"log"
 
@@ -39,7 +38,7 @@ var (
 	playerY         int
 	playerSpeed     int
 	playerDirection string
-	playerDown      bool
+	playerIdle      bool
 )
 
 type Game struct {
@@ -50,10 +49,6 @@ type Game struct {
 }
 
 func init() {
-	// Decode an image from the image file's byte slice.
-	// Now the byte slice is generated with //go:generate for Go 1.15 or older.
-	// If you use Go 1.16 or newer, it is strongly recommended to use //go:embed to embed the image file.
-	// See https://pkg.go.dev/embed for more details.
 	img, _, err := image.Decode(bytes.NewReader(images.Land_png))
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +65,7 @@ func init() {
 	playerY = (screenHeight / 2) - (tileSize)
 	playerSpeed = 2
 	playerDirection = "down"
-	playerDown = false
+	playerIdle = true
 }
 
 func init() {
@@ -99,17 +94,17 @@ func (g *Game) Update() error {
 			playerY = playerY - playerSpeed
 		}
 		playerDirection = "up"
+		playerIdle = inpututil.KeyPressDuration(ebiten.KeyUp) > 0
 	}
-	// When the "down arrow key" is pressed..
 	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
 		if playerY > (screenHeight - (tileSize * 2)) {
 			playerY = screenHeight - (tileSize * 2)
 		} else {
 			playerY = playerY + playerSpeed
 		}
-		playerDown = !playerDown
+		playerDirection = "down"
+		playerIdle = inpututil.KeyPressDuration(ebiten.KeyDown) > 0
 	}
-	// When the "left arrow key" is pressed..
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
 		if playerX < 0 {
 			playerX = 0
@@ -117,6 +112,7 @@ func (g *Game) Update() error {
 			playerX = playerX - playerSpeed
 		}
 		playerDirection = "left"
+		playerIdle = inpututil.KeyPressDuration(ebiten.KeyLeft) > 0
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
 		if playerX > (screenWidth - (tileSize * 2)) {
@@ -125,6 +121,7 @@ func (g *Game) Update() error {
 			playerX = playerX + playerSpeed
 		}
 		playerDirection = "right"
+		playerIdle = inpututil.KeyPressDuration(ebiten.KeyRight) > 0
 	}
 	return nil
 }
@@ -160,28 +157,28 @@ func (g *Game) isKeyJustPressed() bool {
 		}
 	}
 
-	// if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
-	// 	return true
-	// }
-	// // When the "down arrow key" is pressed..
-	// if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
-	// 	return true
-	// }
-	// // When the "left arrow key" is pressed..
-	// if inpututil.IsKeyJustPressed(ebiten.KeyLeft) || inpututil.IsKeyJustPressed(ebiten.KeyA) {
-	// 	return true
-	// }
-	// // When the "right arrow key" is pressed..
-	// if inpututil.IsKeyJustPressed(ebiten.KeyRight) || inpututil.IsKeyJustPressed(ebiten.KeyD) {
-	// 	return true
-	// }
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
+		return true
+	}
+	// When the "down arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		return true
+	}
+	// When the "left arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) || inpututil.IsKeyJustPressed(ebiten.KeyA) {
+		return true
+	}
+	// When the "right arrow key" is pressed..
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) || inpututil.IsKeyJustPressed(ebiten.KeyD) {
+		return true
+	}
 	return false
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 
 	const xNum = screenWidth / tileSize
-	x, y := ebiten.CursorPosition()
+	mouseX, mouseY := ebiten.CursorPosition()
 
 	for _, l := range g.layers {
 		for i, t := range l {
@@ -193,15 +190,19 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			screen.DrawImage(tilesImage.SubImage(image.Rect(sx, sy, sx+tileSize, sy+tileSize)).(*ebiten.Image), op)
 		}
 	}
+	// text.Draw(screen, "BOOM!", arcadeFont, x-50, y, color.White)
+
 	if g.isKeyJustPressed() {
-		// screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
-		text.Draw(screen, "BOOM!", arcadeFont, x-50, y, color.White)
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(mouseX), float64(mouseY))
+		op.ColorM.Scale(1, 1, 1, 0.5)
+		text.DrawWithOptions(screen, "BOOM", arcadeFont, op)
 	}
-	g.drawPlayer(screen, playerX, playerY)
+
+	g.drawPlayer(screen, playerX, playerY, g.isPlayerIdle())
 	g.drawCompanion(screen, playerX-tileSize, playerY-(tileSize*1.5))
 
 	// if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
-	// 	ebitenutil.DebugPrint(screen, "\n\nYou're pressing the 'UP' button.")
 	// }
 	// // When the "down arrow key" is pressed..
 	// if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
@@ -220,11 +221,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS()))
 	// ebitenutil.DebugPrint(screen, fmt.Sprintf("\nX/Y: %d/%d", x, y))
 	ebitenutil.DebugPrint(screen, fmt.Sprintf("\nX/Y: %d/%d", playerX, playerY))
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("\n\nDirection: %s / %t", playerDirection, playerDown))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("\n\nDirection: %s / %t", playerDirection, playerIdle))
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
+}
+
+func (g *Game) isPlayerIdle() bool {
+	return inpututil.KeyPressDuration(ebiten.KeyUp) > 0 || inpututil.KeyPressDuration(ebiten.KeyW) > 0 || inpututil.KeyPressDuration(ebiten.KeyDown) > 0 || inpututil.KeyPressDuration(ebiten.KeyS) > 0 || inpututil.KeyPressDuration(ebiten.KeyLeft) > 0 || inpututil.KeyPressDuration(ebiten.KeyA) > 0 || inpututil.KeyPressDuration(ebiten.KeyRight) > 0 || inpututil.KeyPressDuration(ebiten.KeyD) > 0
 }
 
 func LoadSpritesheet(input []byte, n int, width int, height int) []*ebiten.Image {
@@ -242,7 +247,7 @@ func LoadSpritesheet(input []byte, n int, width int, height int) []*ebiten.Image
 	return sprites
 }
 
-func (g *Game) drawPlayer(screen *ebiten.Image, x int, y int) {
+func (g *Game) drawPlayer(screen *ebiten.Image, x int, y int, walking bool) {
 	op := &ebiten.DrawImageOptions{}
 	// w, h := playerImage.Size()
 	// op.GeoM.Translate(-float64(w)/2.0, -float64(h)/2.0)
@@ -255,9 +260,13 @@ func (g *Game) drawPlayer(screen *ebiten.Image, x int, y int) {
 
 	// op.GeoM.Translate(-float64(frameWidth)/2, -float64(frameHeight)/2)
 	// op.GeoM.Translate(screenWidth/2, screenHeight/2)
-	i := (g.count / 5) % frameNum
-	sx, sy := frameOX+i*frameWidth, frameOY
-	screen.DrawImage(playerImage.SubImage(image.Rect(sx, sy, sx+frameWidth, sy+frameHeight)).(*ebiten.Image), op)
+	if walking {
+		i := (g.count / 5) % frameNum
+		sx, sy := frameOX+i*frameWidth, frameOY
+		screen.DrawImage(playerImage.SubImage(image.Rect(sx, sy, sx+frameWidth, sy+frameHeight)).(*ebiten.Image), op)
+	} else {
+		screen.DrawImage(playerImage.SubImage(image.Rect(0, 0, 32, 32)).(*ebiten.Image), op)
+	}
 }
 
 func (g *Game) drawCompanion(screen *ebiten.Image, x int, y int) {
