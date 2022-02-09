@@ -13,6 +13,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 )
@@ -29,13 +30,14 @@ const (
 )
 
 var (
-	tilesImage   *ebiten.Image
-	playerImage  *ebiten.Image
-	arcadeFont   font.Face
-	playerX      int
-	playerY      int
-	playerSpeed  int
-	playerSprite [2]int
+	tilesImage     *ebiten.Image
+	playerImage    *ebiten.Image
+	companionImage *ebiten.Image
+	arcadeFont     font.Face
+	playerX        int
+	playerY        int
+	playerSpeed    int
+	playerSprite   [2]int
 )
 
 type Game struct {
@@ -62,10 +64,16 @@ func init() {
 	playerY = (screenHeight / 2) - (tileSize)
 	playerSpeed = 2
 	playerSprite = [2]int{0, 0}
+
+	img, _, err = image.Decode(bytes.NewReader(images.Companion_png))
+	if err != nil {
+		log.Fatal(err)
+	}
+	companionImage = ebiten.NewImageFromImage(img)
 }
 
 func init() {
-	tt, err := opentype.Parse(images.PressStart2P_ttf)
+	tt, err := opentype.Parse(fonts.PressStart2P_ttf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,8 +191,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		text.DrawWithOptions(screen, "BOOM", arcadeFont, op)
 	}
 
-	g.drawPlayer(screen, playerX, playerY, g.isPlayerIdle())
 	g.drawCompanion(screen, playerX-tileSize, playerY-(tileSize*1.5))
+	g.drawPlayer(screen, playerX, playerY, g.isPlayerIdle())
 
 	// if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
 	// }
@@ -262,12 +270,11 @@ func (g *Game) drawCompanion(screen *ebiten.Image, x int, y int) {
 	// op.GeoM.Translate(float64(g.x16/16.0)-float64(g.cameraX), float64(g.y16/16.0)-float64(g.cameraY))
 	op.Filter = ebiten.FilterLinear
 	op.GeoM.Translate(float64(x), float64(y))
-	screen.DrawImage(playerImage.SubImage(image.Rect(64, 0, 96, 32)).(*ebiten.Image), op)
-}
+	i := (g.count / 10) % frameNum
+	sx, sy := playerSprite[0]+i*frameWidth, playerSprite[1]
 
-// 0, 0, 32, 32
-// 32, 0, 64, 32
-// 64, 0, 96, 32
+	screen.DrawImage(companionImage.SubImage(image.Rect(sx, sy, sx+frameWidth, sy+frameHeight)).(*ebiten.Image), op)
+}
 
 func main() {
 	g := &Game{
