@@ -1,2 +1,5 @@
 .DS_Store
 examples/*
+*.wasm
+wasm_exec.js
+index.html
